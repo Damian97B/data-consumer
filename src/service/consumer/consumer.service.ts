@@ -5,6 +5,7 @@ import { Consumer, Kafka } from 'kafkajs';
 export class ConsumerService implements OnModuleInit, OnModuleDestroy {
 
     private readonly consumer: Consumer;
+    private readonly dataStoreUrl = process.env.DATA_STORE_URL;
 
     constructor(@Inject('KAFKA') kafka: Kafka) {
         this.consumer = kafka.consumer({ groupId: 'data-consumer' });
@@ -32,6 +33,19 @@ export class ConsumerService implements OnModuleInit, OnModuleDestroy {
                 temperature,
                 timestamp: message.headers?.TIMESTAMP?.toString(),
             });
+
+            const response = await fetch(`${this.dataStoreUrl}/engine-temperatures`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ temperature }),
+            });
+
+            if (!response.ok) {
+                const responseBody = await response.text();
+                throw new Error(`${response.status}: ${responseBody}`);
+            }
+
+            console.log(`Saved temperature: ${temperature}`);
         }});
     }
 
